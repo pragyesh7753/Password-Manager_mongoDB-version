@@ -1,9 +1,14 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer components {
     .mycontainer {
-      @apply container px-40 py-16 mx-auto;
+      width: 100%;
+      max-width: 1280px;
+      padding-left: 10rem;
+      padding-right: 10rem;
+      padding-top: 4rem;
+      padding-bottom: 4rem;
+      margin-left: auto;
+      margin-right: auto;
     }
   }

@@ -2,10 +2,10 @@ import React from 'react'
 
 const Navbar = () => {
   return (
-    <nav className='bg-slate-800 text-white '>
-      <div className="mycontainer flex justify-between items-center px-4 py-5 h-14">
+    <nav className='bg-slate-800 text-white shrink-0'>
+      <div className="max-w-6xl mx-auto flex justify-between items-center px-3 md:px-4 h-12">
 
-        <div className="logo font-bold text-white text-2xl">
+        <div className="logo font-bold text-white text-xl leading-none">
           <span className='text-green-500'> &lt;</span>
 
           <span>Pass</span><span className='text-green-500'>OP/&gt;</span>
@@ -19,9 +19,9 @@ const Navbar = () => {
                         <a className='hover:font-bold' href='#'>Contact</a>
                     </li>
                 </ul> */}
-        <button className='text-white bg-green-700 my-5 mx-2 rounded-full flex  justify-between items-center ring-white ring-1'>
-          <img className='invert  w-10 p-1' src="/icons/github.svg" alt="github logo" />
-          <a href="https://github.com/pragyesh7753/Password-Manager_mongoDB-version"><span className='font-bold px-2'>GitHub</span></a>
+        <button className='text-white bg-green-700 rounded-full flex justify-between items-center ring-white ring-1 text-sm'>
+          <img className='invert w-7 p-1' src="/icons/github.svg" alt="github logo" />
+          <a href="https://github.com/pragyesh7753/Password-Manager_mongoDB-version" target='blank'><span className='font-bold pr-2'>GitHub</span></a>
 
         </button>
       </div>
