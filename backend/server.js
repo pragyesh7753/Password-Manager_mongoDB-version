@@ -1,5 +1,5 @@
 import app from './src/app.js';
-import { PORT, NODE_ENV } from './src/config/env.js';
+import { NODE_ENV, PORT, SERVER_URL } from './src/config/env.js';
 import { connectToDatabase, closeDatabase } from './src/db/mongo.js';
 
 let httpServer;
@@ -32,7 +32,7 @@ const startServer = async () => {
   await connectToDatabase();
 
   httpServer = app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT} (${NODE_ENV})`);
+    console.log(`Server running on ${SERVER_URL} (${NODE_ENV})`);
   });
 
   process.on('SIGINT', () => shutdown('SIGINT'));
