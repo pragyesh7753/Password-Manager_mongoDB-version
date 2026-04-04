@@ -1,5 +1,3 @@
-import React from 'react'
-
 const Navbar = () => {
   return (
     <nav className='bg-slate-800 text-white shrink-0'>
@@ -19,11 +17,15 @@ const Navbar = () => {
                         <a className='hover:font-bold' href='#'>Contact</a>
                     </li>
                 </ul> */}
-        <button className='text-white bg-green-700 rounded-full flex justify-between items-center ring-white ring-1 text-sm'>
+        <a
+          href="https://github.com/pragyesh7753/Password-Manager_mongoDB-version"
+          target="_blank"
+          rel="noreferrer noopener"
+          className='text-white bg-green-700 rounded-full flex justify-between items-center ring-white ring-1 text-sm'
+        >
           <img className='invert w-7 p-1' src="/icons/github.svg" alt="github logo" />
-          <a href="https://github.com/pragyesh7753/Password-Manager_mongoDB-version" target='blank'><span className='font-bold pr-2'>GitHub</span></a>
-
-        </button>
+          <span className='font-bold pr-2'>GitHub</span>
+        </a>
       </div>
     </nav>
   )

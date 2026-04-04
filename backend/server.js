@@ -1,51 +1,45 @@
-const express = require('express')
-const dotenv = require('dotenv')
-const { MongoClient } = require('mongodb');
-const bodyParser = require('body-parser')
-const cors = require('cors')
+import app from './src/app.js';
+import { PORT, NODE_ENV } from './src/config/env.js';
+import { connectToDatabase, closeDatabase } from './src/db/mongo.js';
 
-dotenv.config()
+let httpServer;
 
-// Connection URL
-const url = 'mongodb://localhost:27017';
-const client = new MongoClient(url);
+const shutdown = (signal) => {
+  console.log(`${signal} received. Starting graceful shutdown...`);
 
-// Database Name
-const dbName = 'passop';
-const app = express()
-const port = 3000
-app.use(bodyParser.json())
-app.use(cors())
+  if (!httpServer) {
+    process.exit(0);
+  }
 
-client.connect();
-const db = client.db(dbName);
+  httpServer.close(async () => {
+    try {
+      await closeDatabase();
+      console.log('Shutdown complete.');
+      process.exit(0);
+    } catch (error) {
+      console.error('Error while closing resources:', error);
+      process.exit(1);
+    }
+  });
 
-// Get all the passwords
-app.get('/', async (req, res) => {
-  const db = client.db(dbName);
-  const collection = db.collection('passwords');
-  const findResult = await collection.find({}).toArray();
-  res.json(findResult)
-})
+  setTimeout(() => {
+    console.error('Forced shutdown due to timeout.');
+    process.exit(1);
+  }, 10000).unref();
+};
 
-// Save a password
-app.post('/', async (req, res) => {
-  const password = req.body
-  const db = client.db(dbName);
-  const collection = db.collection('passwords');
-  const findResult = await collection.insertOne(password);
-  res.send({ success: true, result: findResult })
-})
+const startServer = async () => {
+  await connectToDatabase();
 
-// Delete a password by id
-app.delete('/', async (req, res) => {
-  const password = req.body
-  const db = client.db(dbName);
-  const collection = db.collection('passwords');
-  const findResult = await collection.deleteOne(password);
-  res.send({ success: true, result: findResult })
-})
+  httpServer = app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT} (${NODE_ENV})`);
+  });
 
-app.listen(port, () => {
-  console.log(`Example app listening on http://localhost:${port}`)
-})
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+};
+
+startServer().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});
