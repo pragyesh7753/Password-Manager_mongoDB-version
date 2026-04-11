@@ -3,6 +3,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { clerkMiddleware } from '@clerk/express';
 import { CORS_ORIGIN, NODE_ENV } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import passwordRoutes from './routes/passwordRoutes.js';
@@ -31,6 +32,8 @@ app.use(
 if (NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
+
+app.use(clerkMiddleware());
 
 app.get('/api/health', (req, res) => {
   res.json({ success: true, status: 'ok' });

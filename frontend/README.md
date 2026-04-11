@@ -1,8 +1,21 @@
-# React + Vite
+# PassOP Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend for PassOP with custom Clerk authentication UI.
 
-Currently, two official plugins are available:
+## Environment variables
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Create `.env` from `.env.example` and configure:
+
+- `VITE_API_BASE_URL`: backend URL (example: `http://localhost:3000`)
+- `VITE_CLERK_PUBLISHABLE_KEY`: Clerk publishable key
+
+## Run locally
+
+1. Install dependencies
+	- `npm install`
+2. Start the dev server
+	- `npm run dev`
+
+## Build
+
+- `npm run build`
