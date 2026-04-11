@@ -166,10 +166,10 @@ const AuthPanel = () => {
   };
 
   return (
-    <div className="h-dvh flex items-center justify-center bg-green-50 bg-[radial-gradient(circle_at_20%_20%,#86efac_0,transparent_25%),radial-gradient(circle_at_80%_15%,#bbf7d0_0,transparent_30%),linear-gradient(to_bottom,#f0fdf4,#dcfce7)] px-4">
+    <div className="h-dvh overflow-y-auto bg-green-50 bg-[radial-gradient(circle_at_20%_20%,#86efac_0,transparent_25%),radial-gradient(circle_at_80%_15%,#bbf7d0_0,transparent_30%),linear-gradient(to_bottom,#f0fdf4,#dcfce7)] px-3 py-4 sm:px-4 sm:py-8 flex items-start sm:items-center justify-center">
       <ToastContainer />
-      <div className="w-full max-w-md rounded-3xl border border-green-200 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <h1 className="text-3xl font-bold text-center tracking-tight">
+      <div className="w-full max-w-md rounded-3xl border border-green-200 bg-white/90 p-4 sm:p-6 shadow-xl backdrop-blur my-auto">
+        <h1 className="text-2xl sm:text-3xl font-bold text-center tracking-tight">
           <span className="text-green-500">&lt;</span>
           <span>Pass</span>
           <span className="text-green-500">OP/&gt;</span>

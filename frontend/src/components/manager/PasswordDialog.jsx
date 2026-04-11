@@ -19,9 +19,9 @@ const PasswordDialog = ({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[1px] flex items-center justify-center p-4">
-      <div className="w-full max-w-lg rounded-3xl bg-white border border-slate-200 shadow-2xl">
-        <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+    <div className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[1px] flex items-end sm:items-center justify-center p-2 sm:p-4">
+      <div className="w-full max-w-lg rounded-3xl bg-white border border-slate-200 shadow-2xl max-h-[92vh] overflow-hidden flex flex-col">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-200 flex items-center justify-between shrink-0">
           <h3 className="text-xl font-bold text-slate-800">{editingId ? 'Edit Password' : 'Add Password'}</h3>
           <button
             type="button"
@@ -34,7 +34,7 @@ const PasswordDialog = ({
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 overflow-y-auto min-h-0">
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Website URL</span>
             <input
@@ -104,7 +104,7 @@ const PasswordDialog = ({
           {showValidation && validationMessage && <p className="text-xs text-red-600">{validationMessage}</p>}
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-2">
+        <div className="px-4 sm:px-6 py-4 border-t border-slate-200 flex flex-wrap justify-end gap-2 shrink-0">
           <button
             type="button"
             onClick={onClose}

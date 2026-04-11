@@ -511,7 +511,7 @@ const Manager = () => {
         <>
             <ToastContainer />
             <div className="h-full bg-[linear-gradient(120deg,#f7faf9_0%,#edf7f3_40%,#f3f8f7_100%)] overflow-hidden">
-                <div className="h-full max-w-6xl mx-auto px-4 py-4 md:py-6 flex flex-col">
+                <div className="h-full max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-4 md:py-6 flex flex-col">
                     <input
                         ref={importFileInputRef}
                         type="file"

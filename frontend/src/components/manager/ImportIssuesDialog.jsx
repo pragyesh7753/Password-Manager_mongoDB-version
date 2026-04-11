@@ -14,9 +14,9 @@ const ImportIssuesDialog = ({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[1px] flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl rounded-3xl bg-white border border-slate-200 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+    <div className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[1px] flex items-end sm:items-center justify-center p-2 sm:p-4">
+      <div className="w-full max-w-4xl rounded-3xl bg-white border border-slate-200 shadow-2xl max-h-[92vh] overflow-hidden flex flex-col">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h3 className="text-xl font-bold text-slate-800">Rows Not Imported</h3>
             <p className="text-sm text-slate-500 mt-1">
@@ -34,7 +34,7 @@ const ImportIssuesDialog = ({
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1 min-h-0">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 overflow-y-auto flex-1 min-h-0">
           {rows.length === 0 && (
             <div className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center text-slate-500 text-sm">
               No rows to fix.
@@ -97,7 +97,7 @@ const ImportIssuesDialog = ({
           ))}
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-200 flex flex-wrap justify-end gap-2">
+        <div className="px-4 sm:px-6 py-4 border-t border-slate-200 flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={onDownloadRows}

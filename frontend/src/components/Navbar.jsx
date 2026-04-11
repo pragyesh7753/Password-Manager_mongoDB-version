@@ -63,15 +63,15 @@ const Navbar = () => {
 
   return (
     <nav className='bg-slate-800 text-white shrink-0'>
-      <div className="max-w-6xl mx-auto flex justify-between items-center px-3 md:px-4 h-12">
-        <div className="logo font-bold text-white text-xl leading-none">
+      <div className="max-w-6xl mx-auto flex justify-between items-center px-2 sm:px-3 md:px-4 h-12">
+        <div className="logo font-bold text-white text-lg sm:text-xl leading-none whitespace-nowrap">
           <span className='text-green-500'> &lt;</span>
 
           <span>Pass</span><span className='text-green-500'>OP/&gt;</span>
 
 
         </div>
-        <div className='flex items-center gap-2'>
+        <div className='flex items-center gap-1.5 sm:gap-2'>
           <div className='relative' ref={menuRef}>
             <button
               type='button'
@@ -100,7 +100,7 @@ const Navbar = () => {
             </button>
 
             {isProfileMenuOpen && (
-              <div className='absolute right-0 mt-2 w-56 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-20 overflow-hidden'>
+              <div className='absolute right-0 mt-2 w-[min(90vw,14rem)] rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-20 overflow-hidden'>
                 <div className='px-3 py-2 border-b border-slate-700'>
                   <p className='text-sm font-semibold text-white truncate'>{userDisplayName}</p>
                   <p className='text-xs text-green-200 truncate'>{userEmail}</p>
@@ -124,7 +124,7 @@ const Navbar = () => {
             rel="noreferrer noopener"
             className='text-white bg-green-700 rounded-full flex justify-center items-center ring-white ring-1 text-sm'
           >
-            <img className='invert w-7 p-1' src="/icons/github.svg" alt="github logo" />
+            <img className='invert w-6 h-6 sm:w-7 sm:h-7 p-1' src="/icons/github.svg" alt="github logo" />
           </a>
         </div>
       </div>
