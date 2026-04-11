@@ -39,6 +39,10 @@ const PASSWORDS_COLLECTION_SCHEMA = {
       note: {
         bsonType: 'string',
       },
+      encryptionMode: {
+        bsonType: 'string',
+        enum: ['server', 'client'],
+      },
       passwordEncrypted: {
         bsonType: 'object',
         required: ['cipherText', 'iv', 'authTag'],

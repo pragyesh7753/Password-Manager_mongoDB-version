@@ -209,3 +209,19 @@ export const downloadImportIssueRowsCsv = (rows) => {
   document.body.removeChild(link);
   URL.revokeObjectURL(objectUrl);
 };
+
+export const downloadPasswordsCsv = (rows, fileName = 'passop-passwords.csv') => {
+  const csv = Papa.unparse(rows, {
+    columns: ['name', 'url', 'username', 'password', 'note'],
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.setAttribute('download', fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(objectUrl);
+};

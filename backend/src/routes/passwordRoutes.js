@@ -49,7 +49,24 @@ const generateNameFromUrl = (url) => {
   }
 };
 
-const validatePayload = ({ url, username, password, note }) => {
+const isValidEncryptedPayload = (value) => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const { cipherText, iv, authTag } = value;
+
+  return (
+    typeof cipherText === 'string' &&
+    cipherText.length > 0 &&
+    typeof iv === 'string' &&
+    iv.length > 0 &&
+    typeof authTag === 'string' &&
+    authTag.length > 0
+  );
+};
+
+const validatePayload = ({ url, username, password, note, passwordEncryptedClient }) => {
   if (typeof url !== 'string' || url.trim().length < 3) {
     throw new AppError(400, 'url must be at least 3 characters long');
   }
@@ -58,17 +75,32 @@ const validatePayload = ({ url, username, password, note }) => {
     throw new AppError(400, 'username is required');
   }
 
-  if (typeof password !== 'string' || password.length < 4) {
-    throw new AppError(400, 'password must be at least 4 characters long');
+  const normalizedNote = note === undefined || note === null ? '' : String(note);
+
+  if (isValidEncryptedPayload(passwordEncryptedClient)) {
+    return {
+      url: url.trim(),
+      username: username.trim(),
+      note: normalizedNote.trim(),
+      passwordEncrypted: {
+        cipherText: passwordEncryptedClient.cipherText,
+        iv: passwordEncryptedClient.iv,
+        authTag: passwordEncryptedClient.authTag,
+      },
+      encryptionMode: 'client',
+    };
   }
 
-  const normalizedNote = note === undefined || note === null ? '' : String(note);
+  if (typeof password !== 'string' || password.length < 4) {
+    throw new AppError(400, 'password (or passwordEncryptedClient) is required');
+  }
 
   return {
     url: url.trim(),
     username: username.trim(),
-    password,
     note: normalizedNote.trim(),
+    passwordEncrypted: encryptText(password),
+    encryptionMode: 'server',
   };
 };
 
@@ -201,6 +233,8 @@ router.get(
         url: item.url,
         username: item.username,
         note: item.note || '',
+        passwordEncrypted: item.passwordEncrypted || null,
+        encryptionMode: item.encryptionMode || 'server',
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
       }));
@@ -228,6 +262,14 @@ router.get(
     const userId = getAuthenticatedUserId(req);
     const collection = getDb().collection(PASSWORDS_COLLECTION);
     const records = await collection.find({ userId }).sort({ updatedAt: -1, id: -1 }).toArray();
+
+    if (records.some((item) => item.encryptionMode === 'client')) {
+      throw new AppError(
+        400,
+        'Server export is unavailable for zero-knowledge entries. Use in-app export after unlocking your vault.'
+      );
+    }
+
     const rows = buildCsvRows(records);
     sendCsvExportResponse(res, rows);
   })
@@ -239,6 +281,14 @@ router.get(
     const userId = getAuthenticatedUserId(req);
     const collection = getDb().collection(PASSWORDS_COLLECTION);
     const records = await collection.find({ userId }).sort({ updatedAt: -1, id: -1 }).toArray();
+
+    if (records.some((item) => item.encryptionMode === 'client')) {
+      throw new AppError(
+        400,
+        'Server export is unavailable for zero-knowledge entries. Use in-app export after unlocking your vault.'
+      );
+    }
+
     const rows = buildCsvRows(records);
     sendCsvExportResponse(res, rows);
   })
@@ -259,7 +309,8 @@ router.post(
       url: entry.url,
       username: entry.username,
       note: entry.note,
-      passwordEncrypted: encryptText(entry.password),
+      passwordEncrypted: entry.passwordEncrypted,
+      encryptionMode: entry.encryptionMode,
       createdAt: now,
       updatedAt: now,
     }));
@@ -289,10 +340,17 @@ router.get(
     }
 
     const collection = getDb().collection(PASSWORDS_COLLECTION);
-    const item = await collection.findOne({ userId, id }, { projection: { passwordEncrypted: 1, password: 1 } });
+    const item = await collection.findOne(
+      { userId, id },
+      { projection: { passwordEncrypted: 1, password: 1, encryptionMode: 1 } }
+    );
 
     if (!item) {
       throw new AppError(404, 'Password entry not found');
+    }
+
+    if (item.encryptionMode === 'client') {
+      throw new AppError(400, 'Password reveal is unavailable for zero-knowledge entries. Decrypt in the client app.');
     }
 
     let password = '';
@@ -324,10 +382,17 @@ router.get(
     }
 
     const collection = getDb().collection(PASSWORDS_COLLECTION);
-    const item = await collection.findOne({ userId, id }, { projection: { passwordEncrypted: 1, password: 1 } });
+    const item = await collection.findOne(
+      { userId, id },
+      { projection: { passwordEncrypted: 1, password: 1, encryptionMode: 1 } }
+    );
 
     if (!item) {
       throw new AppError(404, 'Password entry not found');
+    }
+
+    if (item.encryptionMode === 'client') {
+      throw new AppError(400, 'Password reveal is unavailable for zero-knowledge entries. Decrypt in the client app.');
     }
 
     let password = '';
@@ -363,7 +428,8 @@ router.post(
       url: payload.url,
       username: payload.username,
       note: payload.note,
-      passwordEncrypted: encryptText(payload.password),
+      passwordEncrypted: payload.passwordEncrypted,
+      encryptionMode: payload.encryptionMode,
       createdAt: now,
       updatedAt: now,
     };
@@ -379,7 +445,7 @@ router.post(
         url: payload.url,
         username: payload.username,
         note: payload.note,
-        password: payload.password,
+        encryptionMode: payload.encryptionMode,
       },
     });
   })
@@ -405,7 +471,8 @@ router.put(
           url: payload.url,
           username: payload.username,
           note: payload.note,
-          passwordEncrypted: encryptText(payload.password),
+          passwordEncrypted: payload.passwordEncrypted,
+          encryptionMode: payload.encryptionMode,
           updatedAt: new Date(),
         },
       }
@@ -423,7 +490,7 @@ router.put(
         url: payload.url,
         username: payload.username,
         note: payload.note,
-        password: payload.password,
+        encryptionMode: payload.encryptionMode,
       },
     });
   })

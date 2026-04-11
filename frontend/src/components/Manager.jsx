@@ -3,22 +3,34 @@ import { useAuth } from '@clerk/clerk-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { apiClient } from '../lib/api';
+import {
+    createVaultVerifier,
+    decryptWithVaultKey,
+    deriveVaultKey,
+    encryptWithVaultKey,
+    verifyVaultVerifier,
+} from '../lib/vaultCrypto';
 import ImportIssuesDialog from './manager/ImportIssuesDialog';
 import PasswordDialog from './manager/PasswordDialog';
 import PasswordTable from './manager/PasswordTable';
+import VaultUnlockDialog from './manager/VaultUnlockDialog';
 import VaultToolbar from './manager/VaultToolbar';
 import { EMPTY_FORM, FILTER_OPTIONS, PAGE_SIZE } from './manager/constants';
 import {
     downloadImportIssueRowsCsv,
+    downloadPasswordsCsv,
     getPasswordStrength,
     getValidationMessage,
     normalizeImportRow,
     parseCsvFile,
 } from './manager/utils';
 
+const getVaultVerifierStorageKey = (userId) => `passop:vault-verifier:${String(userId || '')}`;
+
 const Manager = () => {
-    const { getToken } = useAuth();
+    const { getToken, userId } = useAuth();
     const importFileInputRef = useRef(null);
+    const vaultKeyRef = useRef(null);
 
     const [form, setForm] = useState(EMPTY_FORM);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -38,6 +50,12 @@ const Manager = () => {
     const [pendingPasswordId, setPendingPasswordId] = useState(null);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [showValidation, setShowValidation] = useState(false);
+    const [masterPassword, setMasterPassword] = useState('');
+    const [confirmMasterPassword, setConfirmMasterPassword] = useState('');
+    const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
+    const [isUnlockingVault, setIsUnlockingVault] = useState(false);
+    const [vaultUnlockError, setVaultUnlockError] = useState('');
+    const [hasStoredVaultVerifier, setHasStoredVaultVerifier] = useState(false);
     const [importIssueRows, setImportIssueRows] = useState([]);
     const [isImportIssuesDialogOpen, setIsImportIssuesDialogOpen] = useState(false);
     const [isRetryingImportIssues, setIsRetryingImportIssues] = useState(false);
@@ -87,6 +105,130 @@ const Manager = () => {
     useEffect(() => {
         refreshPasswords();
     }, [refreshPasswords]);
+
+    useEffect(() => {
+        vaultKeyRef.current = null;
+        setIsVaultUnlocked(false);
+        setMasterPassword('');
+        setConfirmMasterPassword('');
+        setVaultUnlockError('');
+        setHasStoredVaultVerifier(false);
+    }, [userId]);
+
+    useEffect(() => {
+        const raw = window.localStorage.getItem(getVaultVerifierStorageKey(userId));
+        setHasStoredVaultVerifier(!!raw);
+    }, [userId]);
+
+    const readStoredVaultVerifier = useCallback(() => {
+        try {
+            const raw = window.localStorage.getItem(getVaultVerifierStorageKey(userId));
+            if (!raw) {
+                return null;
+            }
+
+            const parsed = JSON.parse(raw);
+            if (
+                typeof parsed?.cipherText === 'string' &&
+                typeof parsed?.iv === 'string' &&
+                typeof parsed?.authTag === 'string'
+            ) {
+                return parsed;
+            }
+
+            return null;
+        } catch {
+            return null;
+        }
+    }, [userId]);
+
+    const persistVaultVerifier = useCallback(
+        async (key) => {
+            const verifier = await createVaultVerifier({ key });
+            window.localStorage.setItem(getVaultVerifierStorageKey(userId), JSON.stringify(verifier));
+            setHasStoredVaultVerifier(true);
+        },
+        [userId]
+    );
+
+    const hasClientEncryptedEntries = useMemo(
+        () => passwordArray.some((item) => (item.encryptionMode || 'server') === 'client'),
+        [passwordArray]
+    );
+
+    const isCreatingMasterPassword = !hasStoredVaultVerifier && !hasClientEncryptedEntries;
+
+    const ensureVaultUnlocked = () => {
+        if (vaultKeyRef.current) {
+            return true;
+        }
+
+        setIsVaultUnlocked(false);
+        setVaultUnlockError('Unlock your vault to decrypt or save passwords.');
+        return false;
+    };
+
+    const unlockVault = async () => {
+        if (!masterPassword.trim()) {
+            setVaultUnlockError('Master password is required.');
+            return;
+        }
+
+        if (isCreatingMasterPassword && masterPassword !== confirmMasterPassword) {
+            setVaultUnlockError('Master password and confirm password do not match.');
+            return;
+        }
+
+        setIsUnlockingVault(true);
+        setVaultUnlockError('');
+
+        try {
+            const key = await deriveVaultKey({
+                masterPassword,
+                userId,
+            });
+
+            const storedVerifier = readStoredVaultVerifier();
+            const sampleEncryptedEntry = passwordArray.find(
+                (item) => (item.encryptionMode || 'server') === 'client' && item.passwordEncrypted
+            );
+
+            if (storedVerifier) {
+                const isValid = await verifyVaultVerifier({
+                    verifier: storedVerifier,
+                    key,
+                });
+
+                if (!isValid) {
+                    throw new Error('Incorrect master password.');
+                }
+            } else if (sampleEncryptedEntry) {
+                try {
+                    await decryptWithVaultKey({
+                        encryptedPayload: sampleEncryptedEntry.passwordEncrypted,
+                        key,
+                    });
+                } catch {
+                    throw new Error('Incorrect master password.');
+                }
+
+                await persistVaultVerifier(key);
+            } else {
+                await persistVaultVerifier(key);
+                toast.info('Important: if you forget this master password, encrypted passwords cannot be recovered.');
+            }
+
+            vaultKeyRef.current = key;
+            setIsVaultUnlocked(true);
+            setVaultUnlockError('');
+            setMasterPassword('');
+            setConfirmMasterPassword('');
+        } catch (error) {
+            setVaultUnlockError(error.message || 'Failed to unlock vault.');
+        } finally {
+            setIsUnlockingVault(false);
+        }
+    };
 
     const copyText = (text) => {
         navigator.clipboard
@@ -189,15 +331,24 @@ const Manager = () => {
             return;
         }
 
+        if (!ensureVaultUnlocked()) {
+            toast.error('Unlock your vault before saving passwords.');
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
             const isUpdate = !!editingId;
+            const passwordEncryptedClient = await encryptWithVaultKey({
+                plainText: form.password,
+                key: vaultKeyRef.current,
+            });
             const payload = {
                 url: form.url.trim(),
                 username: form.username.trim(),
-                password: form.password,
                 note: form.note.trim(),
+                passwordEncryptedClient,
             };
 
             if (isUpdate) {
@@ -252,10 +403,30 @@ const Manager = () => {
     };
 
     const copyPassword = async (id) => {
+        const selected = passwordArray.find((item) => item.id === id);
+        if (!selected) {
+            return;
+        }
+
         setPendingPasswordId(id);
 
         try {
-            const password = await apiClient.revealPassword(id, getToken);
+            let password = '';
+
+            if ((selected.encryptionMode || 'server') === 'client') {
+                if (!ensureVaultUnlocked()) {
+                    toast.error('Unlock your vault before copying passwords.');
+                    return;
+                }
+
+                password = await decryptWithVaultKey({
+                    encryptedPayload: selected.passwordEncrypted,
+                    key: vaultKeyRef.current,
+                });
+            } else {
+                password = await apiClient.revealPassword(id, getToken);
+            }
+
             copyText(password);
         } catch (error) {
             toast.error(error.message || 'Failed to copy password');
@@ -272,7 +443,22 @@ const Manager = () => {
 
         setPendingPasswordId(id);
         try {
-            const password = await apiClient.revealPassword(id, getToken);
+            let password = '';
+
+            if ((selected.encryptionMode || 'server') === 'client') {
+                if (!ensureVaultUnlocked()) {
+                    toast.error('Unlock your vault before editing passwords.');
+                    return;
+                }
+
+                password = await decryptWithVaultKey({
+                    encryptedPayload: selected.passwordEncrypted,
+                    key: vaultKeyRef.current,
+                });
+            } else {
+                password = await apiClient.revealPassword(id, getToken);
+            }
+
             setEditingId(id);
             setForm({
                 url: selected.url || '',
@@ -299,19 +485,53 @@ const Manager = () => {
     };
 
     const exportPasswordsCsv = async () => {
+        if (!ensureVaultUnlocked()) {
+            toast.error('Unlock your vault before exporting passwords.');
+            return;
+        }
+
         setIsExporting(true);
 
         try {
-            const { csv, fileName } = await apiClient.exportPasswordsCsv(getToken);
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const objectUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = objectUrl;
-            link.setAttribute('download', fileName || 'passop-passwords.csv');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(objectUrl);
+            const records = [];
+            let cursor = null;
+
+            do {
+                const page = await apiClient.getPasswords(getToken, {
+                    limit: PAGE_SIZE,
+                    cursor,
+                });
+
+                const items = page?.items || [];
+                records.push(...items);
+                cursor = page?.nextCursor || null;
+            } while (cursor);
+
+            const exportRows = [];
+
+            for (const item of records) {
+                let password = '';
+
+                if ((item.encryptionMode || 'server') === 'client') {
+                    password = await decryptWithVaultKey({
+                        encryptedPayload: item.passwordEncrypted,
+                        key: vaultKeyRef.current,
+                    });
+                } else {
+                    password = await apiClient.revealPassword(item.id, getToken);
+                }
+
+                exportRows.push({
+                    name: item.name,
+                    url: item.url,
+                    username: item.username,
+                    password,
+                    note: item.note || '',
+                });
+            }
+
+            const exportDate = new Date().toISOString().slice(0, 10);
+            downloadPasswordsCsv(exportRows, `passop-passwords-${exportDate}.csv`);
 
             toast.success('Passwords exported as CSV');
         } catch (error) {
@@ -380,7 +600,24 @@ const Manager = () => {
                 throw new Error('No valid rows found in CSV');
             }
 
-            const result = await apiClient.importPasswords(entries, getToken);
+            if (!ensureVaultUnlocked()) {
+                toast.error('Unlock your vault before importing passwords.');
+                return;
+            }
+
+            const encryptedEntries = await Promise.all(
+                entries.map(async (entry) => ({
+                    url: entry.url,
+                    username: entry.username,
+                    note: entry.note,
+                    passwordEncryptedClient: await encryptWithVaultKey({
+                        plainText: entry.password,
+                        key: vaultKeyRef.current,
+                    }),
+                }))
+            );
+
+            const result = await apiClient.importPasswords(encryptedEntries, getToken);
             await refreshPasswords();
 
             toast.success(`Import complete: ${result.inserted || 0} inserted`);
@@ -436,6 +673,11 @@ const Manager = () => {
             return;
         }
 
+        if (!ensureVaultUnlocked()) {
+            toast.error('Unlock your vault before importing fixed rows.');
+            return;
+        }
+
         setIsRetryingImportIssues(true);
 
         try {
@@ -467,7 +709,19 @@ const Manager = () => {
                 return;
             }
 
-            const result = await apiClient.importPasswords(validEntries, getToken);
+            const encryptedEntries = await Promise.all(
+                validEntries.map(async (entry) => ({
+                    url: entry.url,
+                    username: entry.username,
+                    note: entry.note,
+                    passwordEncryptedClient: await encryptWithVaultKey({
+                        plainText: entry.password,
+                        key: vaultKeyRef.current,
+                    }),
+                }))
+            );
+
+            const result = await apiClient.importPasswords(encryptedEntries, getToken);
             await refreshPasswords();
             toast.success(`Fixed import complete: ${result.inserted || 0} inserted`);
 
@@ -606,6 +860,28 @@ const Manager = () => {
                 onRetryImport={retryImportIssueRows}
                 onDownloadRows={downloadImportIssueRows}
                 isRetrying={isRetryingImportIssues}
+            />
+
+            <VaultUnlockDialog
+                isOpen={!isVaultUnlocked}
+                masterPassword={masterPassword}
+                confirmMasterPassword={confirmMasterPassword}
+                onMasterPasswordChange={(value) => {
+                    setMasterPassword(value);
+                    if (vaultUnlockError) {
+                        setVaultUnlockError('');
+                    }
+                }}
+                onConfirmMasterPasswordChange={(value) => {
+                    setConfirmMasterPassword(value);
+                    if (vaultUnlockError) {
+                        setVaultUnlockError('');
+                    }
+                }}
+                onUnlock={unlockVault}
+                isUnlocking={isUnlockingVault}
+                unlockError={vaultUnlockError}
+                isCreatingMasterPassword={isCreatingMasterPassword}
             />
         </>
     );
