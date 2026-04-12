@@ -27,6 +27,28 @@ import {
 
 const getVaultVerifierStorageKey = (userId) => `passop:vault-verifier:${String(userId || '')}`;
 
+const readVaultVerifierFromStorage = (userId) => {
+    try {
+        const raw = window.localStorage.getItem(getVaultVerifierStorageKey(userId));
+        if (!raw) {
+            return null;
+        }
+
+        const parsed = JSON.parse(raw);
+        if (
+            typeof parsed?.cipherText === 'string' &&
+            typeof parsed?.iv === 'string' &&
+            typeof parsed?.authTag === 'string'
+        ) {
+            return parsed;
+        }
+
+        return null;
+    } catch {
+        return null;
+    }
+};
+
 const Manager = () => {
     const { getToken, userId } = useAuth();
     const importFileInputRef = useRef(null);
@@ -55,7 +77,7 @@ const Manager = () => {
     const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
     const [isUnlockingVault, setIsUnlockingVault] = useState(false);
     const [vaultUnlockError, setVaultUnlockError] = useState('');
-    const [hasStoredVaultVerifier, setHasStoredVaultVerifier] = useState(false);
+    const [hasStoredVaultVerifier, setHasStoredVaultVerifier] = useState(() => !!readVaultVerifierFromStorage(userId));
     const [importIssueRows, setImportIssueRows] = useState([]);
     const [isImportIssuesDialogOpen, setIsImportIssuesDialogOpen] = useState(false);
     const [isRetryingImportIssues, setIsRetryingImportIssues] = useState(false);
@@ -112,34 +134,11 @@ const Manager = () => {
         setMasterPassword('');
         setConfirmMasterPassword('');
         setVaultUnlockError('');
-        setHasStoredVaultVerifier(false);
-    }, [userId]);
-
-    useEffect(() => {
-        const raw = window.localStorage.getItem(getVaultVerifierStorageKey(userId));
-        setHasStoredVaultVerifier(!!raw);
+        setHasStoredVaultVerifier(!!readVaultVerifierFromStorage(userId));
     }, [userId]);
 
     const readStoredVaultVerifier = useCallback(() => {
-        try {
-            const raw = window.localStorage.getItem(getVaultVerifierStorageKey(userId));
-            if (!raw) {
-                return null;
-            }
-
-            const parsed = JSON.parse(raw);
-            if (
-                typeof parsed?.cipherText === 'string' &&
-                typeof parsed?.iv === 'string' &&
-                typeof parsed?.authTag === 'string'
-            ) {
-                return parsed;
-            }
-
-            return null;
-        } catch {
-            return null;
-        }
+        return readVaultVerifierFromStorage(userId);
     }, [userId]);
 
     const persistVaultVerifier = useCallback(
@@ -156,7 +155,10 @@ const Manager = () => {
         [passwordArray]
     );
 
-    const isCreatingMasterPassword = !hasStoredVaultVerifier && !hasClientEncryptedEntries;
+    const isInitialVaultLoadPending = isLoading && passwordArray.length === 0;
+    const isVaultStateHydrating = !hasStoredVaultVerifier && isInitialVaultLoadPending;
+
+    const isCreatingMasterPassword = !isVaultStateHydrating && !hasStoredVaultVerifier && !hasClientEncryptedEntries;
 
     const ensureVaultUnlocked = () => {
         if (vaultKeyRef.current) {
@@ -169,6 +171,11 @@ const Manager = () => {
     };
 
     const unlockVault = async () => {
+        if (isVaultStateHydrating) {
+            setVaultUnlockError('Checking your vault status. Please wait a moment and try again.');
+            return;
+        }
+
         if (!masterPassword.trim()) {
             setVaultUnlockError('Master password is required.');
             return;
@@ -882,6 +889,7 @@ const Manager = () => {
                 isUnlocking={isUnlockingVault}
                 unlockError={vaultUnlockError}
                 isCreatingMasterPassword={isCreatingMasterPassword}
+                isVaultStateHydrating={isVaultStateHydrating}
             />
         </>
     );

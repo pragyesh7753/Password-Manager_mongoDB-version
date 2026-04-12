@@ -10,6 +10,7 @@ const VaultUnlockDialog = ({
   isUnlocking,
   unlockError,
   isCreatingMasterPassword,
+  isVaultStateHydrating,
 }) => {
   if (!isOpen) {
     return null;
@@ -23,6 +24,11 @@ const VaultUnlockDialog = ({
           <p className="text-sm text-slate-500 mt-1">
             Enter your master password. It is used only in your browser to decrypt saved passwords.
           </p>
+          {isVaultStateHydrating && (
+            <p className="mt-3 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Checking your existing vault data before unlocking.
+            </p>
+          )}
           {isCreatingMasterPassword && (
             <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
               Important: if you forget this master password, your encrypted passwords cannot be recovered.
@@ -67,13 +73,20 @@ const VaultUnlockDialog = ({
           <button
             type="submit"
             disabled={
+              isVaultStateHydrating ||
               isUnlocking ||
               !masterPassword.trim() ||
               (isCreatingMasterPassword && !confirmMasterPassword.trim())
             }
             className="w-full rounded-xl bg-green-700 hover:bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-green-400 disabled:cursor-not-allowed"
           >
-            {isUnlocking ? 'Unlocking...' : isCreatingMasterPassword ? 'Create & Unlock Vault' : 'Unlock Vault'}
+            {isVaultStateHydrating
+              ? 'Checking Vault...'
+              : isUnlocking
+                ? 'Unlocking...'
+                : isCreatingMasterPassword
+                  ? 'Create & Unlock Vault'
+                  : 'Unlock Vault'}
           </button>
         </form>
       </div>
@@ -91,6 +104,7 @@ VaultUnlockDialog.propTypes = {
   isUnlocking: PropTypes.bool.isRequired,
   unlockError: PropTypes.string.isRequired,
   isCreatingMasterPassword: PropTypes.bool.isRequired,
+  isVaultStateHydrating: PropTypes.bool.isRequired,
 };
 
 export default VaultUnlockDialog;
